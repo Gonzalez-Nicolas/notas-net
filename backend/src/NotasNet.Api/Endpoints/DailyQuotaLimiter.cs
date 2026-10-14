@@ -1,6 +1,7 @@
+using NotasNet.Api.Application;
 namespace NotasNet.Api.Endpoints;
 
-public class DailyQuotaLimiter(int maxPerDay)
+public class DailyQuotaLimiter(int maxPerDay) : IUsageQuota
 {
     private readonly object _lock = new();
     private DateOnly _day = DateOnly.FromDateTime(DateTime.UtcNow);

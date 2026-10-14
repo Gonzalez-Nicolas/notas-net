@@ -13,7 +13,7 @@ public class NotesEndpointTests
     private const string ValidUrl = "https://youtu.be/dQw4w9WgXcQ";
     private const string AllowedOrigin = "https://app.example";
 
-    private sealed class FakeTranscript(NotesException? error = null) : ITranscriptProvider
+    private sealed class FakeTranscript(Exception? error = null) : ITranscriptProvider
     {
         public Task<string> GetAsync(string videoId, CancellationToken ct) =>
             error is null
@@ -33,7 +33,7 @@ public class NotesEndpointTests
     }
 
     private static HttpClient Client(
-        NotesException? transcriptError = null, int perMinute = 100, int dailyLimit = 1000)
+        Exception? transcriptError = null, int perMinute = 100, int dailyLimit = 1000)
     {
         var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
@@ -126,5 +126,50 @@ public class NotesEndpointTests
 
         Assert.Equal(AllowedOrigin, allowedResponse.Headers.GetValues("Access-Control-Allow-Origin").Single());
         Assert.False(deniedResponse.Headers.Contains("Access-Control-Allow-Origin"));
+    }
+
+    [Fact]
+    public async Task Rate_limit_is_partitioned_by_forwarded_client_ip()
+    {
+        var client = Client(perMinute: 1);
+
+        HttpRequestMessage From(string ip)
+        {
+            var r = new HttpRequestMessage(HttpMethod.Post, "/api/notes")
+            { Content = JsonContent.Create(new { url = ValidUrl }) };
+            r.Headers.Add("X-Forwarded-For", ip);
+            return r;
+        }
+
+        var first = await client.SendAsync(From("1.1.1.1"));
+        var otherClient = await client.SendAsync(From("2.2.2.2"));
+        var sameClient = await client.SendAsync(From("1.1.1.1"));
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, otherClient.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, sameClient.StatusCode);
+    }
+
+    [Fact]
+    public async Task Unexpected_provider_exception_becomes_an_error_event()
+    {
+        var client = Client(new InvalidOperationException("boom"));
+
+        var body = await (await Post(client, ValidUrl)).Content.ReadAsStringAsync();
+
+        Assert.Contains("event: error", body);
+        Assert.Contains("\"code\":\"llm_failure\"", body);
+    }
+
+    [Fact]
+    public async Task Invalid_urls_do_not_consume_the_daily_quota()
+    {
+        var client = Client(dailyLimit: 1);
+
+        await (await Post(client, "hola")).Content.ReadAsStringAsync();
+        var body = await (await Post(client, ValidUrl)).Content.ReadAsStringAsync();
+
+        Assert.Contains("event: done", body);
+        Assert.DoesNotContain("rate_limited", body);
     }
 }

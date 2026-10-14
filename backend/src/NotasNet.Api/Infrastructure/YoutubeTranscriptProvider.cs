@@ -21,12 +21,9 @@ public class YoutubeTranscriptProvider : ITranscriptProvider
             var captions = await _youtube.Videos.ClosedCaptions.GetAsync(track, ct);
             return string.Join(" ", captions.Captions.Select(c => c.Text.Trim()).Where(t => t.Length > 0));
         }
-        catch (VideoUnavailableException)
+        catch (YoutubeExplodeException)
         {
-            throw new NotesException(NotesErrorCode.VideoUnavailable);
-        }
-        catch (VideoUnplayableException)
-        {
+            // unavailable/unplayable videos and YouTube request-limit errors all end here
             throw new NotesException(NotesErrorCode.VideoUnavailable);
         }
     }

@@ -13,7 +13,7 @@ public static class NotesEndpoint
     }
 
     private static async Task HandleAsync(
-        NotesRequest request, HttpContext http, GenerateNotesUseCase useCase, DailyQuotaLimiter quota)
+        NotesRequest request, HttpContext http, GenerateNotesUseCase useCase, ILogger<GenerateNotesUseCase> logger)
     {
         var ct = http.RequestAborted;
         http.Response.ContentType = "text/event-stream";
@@ -22,12 +22,6 @@ public static class NotesEndpoint
 
         try
         {
-            if (!quota.TryAcquire())
-            {
-                await WriteAsync(http, "error", new { code = ErrorCode(NotesErrorCode.RateLimited) }, ct);
-                return;
-            }
-
             await foreach (var e in useCase.ExecuteAsync(request.Url ?? "", ct))
             {
                 switch (e)
@@ -42,9 +36,16 @@ public static class NotesEndpoint
         {
             await WriteAsync(http, "error", new { code = ErrorCode(ex.Code) }, ct);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             // client disconnected; the cancellation token already stopped upstream calls
+        }
+        catch (Exception ex)
+        {
+            // Headers are already sent, so surface unexpected failures (timeouts, dropped
+            // connections, provider errors) as an SSE error event instead of killing the stream.
+            logger.LogError(ex, "Unexpected failure while generating notes");
+            await WriteAsync(http, "error", new { code = ErrorCode(NotesErrorCode.LlmFailure) }, CancellationToken.None);
         }
     }
 

@@ -117,4 +117,52 @@ public class GenerateNotesUseCaseTests
                 if (e is ChunkEvent) cts.Cancel();
         });
     }
+
+    [Fact]
+    public async Task Llm_that_returns_no_text_throws_LlmFailure_instead_of_empty_success()
+    {
+        var uc = new GenerateNotesUseCase(new FakeTranscript(Words(50)), new FakeLlm(), Opts());
+
+        var ex = await Assert.ThrowsAsync<NotesException>(() => Collect(uc, ValidUrl));
+
+        Assert.Equal(NotesErrorCode.LlmFailure, ex.Code);
+    }
+
+    private sealed class FakeQuota(bool allow) : IUsageQuota
+    {
+        public int Calls;
+        public bool TryAcquire()
+        {
+            Calls++;
+            return allow;
+        }
+    }
+
+    [Fact]
+    public async Task Quota_is_only_consumed_after_url_and_transcript_checks_pass()
+    {
+        var quota = new FakeQuota(true);
+
+        var invalid = new GenerateNotesUseCase(new FakeTranscript(Words(50)), new FakeLlm("x"), Opts(), quota);
+        await Assert.ThrowsAsync<NotesException>(() => Collect(invalid, "hola"));
+        var noCaptions = new GenerateNotesUseCase(new FakeTranscript("uno"), new FakeLlm("x"), Opts(), quota);
+        await Assert.ThrowsAsync<NotesException>(() => Collect(noCaptions, ValidUrl));
+        Assert.Equal(0, quota.Calls);
+
+        var ok = new GenerateNotesUseCase(new FakeTranscript(Words(50)), new FakeLlm("x"), Opts(), quota);
+        await Collect(ok, ValidUrl);
+        Assert.Equal(1, quota.Calls);
+    }
+
+    [Fact]
+    public async Task Denied_quota_throws_RateLimited_without_calling_the_llm()
+    {
+        var llm = new FakeLlm("x");
+        var uc = new GenerateNotesUseCase(new FakeTranscript(Words(50)), llm, Opts(), new FakeQuota(false));
+
+        var ex = await Assert.ThrowsAsync<NotesException>(() => Collect(uc, ValidUrl));
+
+        Assert.Equal(NotesErrorCode.RateLimited, ex.Code);
+        Assert.Empty(llm.Calls);
+    }
 }
