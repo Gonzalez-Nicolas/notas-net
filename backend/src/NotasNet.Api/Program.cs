@@ -1,11 +1,14 @@
-using System.Net;
 using System.Threading.RateLimiting;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using NotasNet.Api.Application;
 using NotasNet.Api.Endpoints;
 using NotasNet.Api.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
+
+if (!string.IsNullOrWhiteSpace(config["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+    builder.Services.AddOpenTelemetry().UseAzureMonitor();
 
 var allowedOrigin = config["Cors:AllowedOrigin"] ?? "http://localhost:5173";
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
