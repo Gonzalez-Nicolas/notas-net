@@ -4,7 +4,7 @@ Aprovisionamiento único (reemplazá los valores entre `<>`). Requiere `az login
 
 ```bash
 RG=notasnet-rg
-LOC=eastus
+LOC=eastus2
 ACR=<nombre-unico-acr>
 ENV=notasnet-env
 APP=notasnet-api

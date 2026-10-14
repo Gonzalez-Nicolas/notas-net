@@ -4,7 +4,7 @@ Pegá el link de un video de YouTube y recibí **notas de estudio en Markdown**,
 
 > **Demo en vivo:** _se agrega luego del despliegue (ver [docs/deploy.md](docs/deploy.md))_
 
-![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/Gonzalez-Nicolas/notas-net/actions/workflows/ci.yml/badge.svg)
 
 ## Cómo funciona
 
