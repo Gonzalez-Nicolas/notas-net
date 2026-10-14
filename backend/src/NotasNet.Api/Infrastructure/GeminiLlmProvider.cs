@@ -5,7 +5,8 @@ using NotasNet.Api.Application;
 
 namespace NotasNet.Api.Infrastructure;
 
-public class GeminiLlmProvider(HttpClient http, GeminiOptions options) : ILlmProvider
+public class GeminiLlmProvider(
+    HttpClient http, GeminiOptions options, ILogger<GeminiLlmProvider>? logger = null) : ILlmProvider
 {
     public async IAsyncEnumerable<string> StreamAsync(
         string systemPrompt, string content, [EnumeratorCancellation] CancellationToken ct)
@@ -36,7 +37,12 @@ public class GeminiLlmProvider(HttpClient http, GeminiOptions options) : ILlmPro
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 throw new NotesException(NotesErrorCode.RateLimited);
             if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(ct);
+                logger?.LogError("Gemini returned {Status} for model {Model}: {Body}",
+                    (int)response.StatusCode, options.Model, body.Length > 500 ? body[..500] : body);
                 throw new NotesException(NotesErrorCode.LlmFailure);
+            }
 
             using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(ct));
             while (await reader.ReadLineAsync(ct) is { } line)
