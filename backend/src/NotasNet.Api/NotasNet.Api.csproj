@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Prompts*.md" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Prompts\*.md" />
   </ItemGroup>
 
 </Project>
