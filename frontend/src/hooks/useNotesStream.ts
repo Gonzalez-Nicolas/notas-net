@@ -63,7 +63,7 @@ export function useNotesStream() {
           }
         }
         if (!finished) fail('network')
-      } catch (err) {
+      } catch {
         if (controller.signal.aborted) return
         fail('network')
       }
