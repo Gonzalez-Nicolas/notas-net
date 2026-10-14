@@ -8,6 +8,8 @@ on:
 
 jobs:
   deploy:
+    # Omitido (no rojo) hasta que se configure la variable de repositorio API_URL.
+    if: ${{ vars.API_URL != '' }}
     runs-on: ubuntu-latest
     defaults:
       run:
