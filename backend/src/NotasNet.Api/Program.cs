@@ -31,7 +31,8 @@ builder.Services.AddRateLimiter(o =>
 
 builder.Services.AddSingleton(new GeminiOptions(
     config["Gemini:ApiKey"] ?? "",
-    config["Gemini:Model"] ?? "gemini-2.5-flash"));
+    config["Gemini:Model"] ?? "gemini-3.6-flash",
+    config["Gemini:FallbackModel"] ?? "gemini-3.5-flash-lite"));
 builder.Services.AddHttpClient<ILlmProvider, GeminiLlmProvider>();
 builder.Services.AddSingleton<ITranscriptProvider, YoutubeTranscriptProvider>();
 builder.Services.AddSingleton<IUsageQuota>(new DailyQuotaLimiter(config.GetValue("Notes:DailyLimit", 200)));

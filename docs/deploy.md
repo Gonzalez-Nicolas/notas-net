@@ -24,7 +24,8 @@ az containerapp create -n $APP -g $RG --environment $ENV \
   --min-replicas 0 --max-replicas 2 \
   --secrets gemini-key=<GEMINI_API_KEY> \
   --env-vars Gemini__ApiKey=secretref:gemini-key \
-             Gemini__Model=gemini-2.5-flash \
+             Gemini__Model=gemini-3.6-flash \
+             Gemini__FallbackModel=gemini-3.5-flash-lite \
              Cors__AllowedOrigin=https://<tu-static-web-app>.azurestaticapps.net \
              APPLICATIONINSIGHTS_CONNECTION_STRING=<connection-string>
 

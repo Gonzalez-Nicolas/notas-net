@@ -54,4 +54,70 @@ public class GeminiLlmProviderTests
         var ex = await Assert.ThrowsAsync<NotesException>(() => Drain(Make(new StubHandler(HttpStatusCode.InternalServerError, "boom"))));
         Assert.Equal(NotesErrorCode.LlmFailure, ex.Code);
     }
+
+    private sealed class SequenceHandler(params (HttpStatusCode Status, string Body)[] responses) : HttpMessageHandler
+    {
+        public List<string> Urls { get; } = [];
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var (status, body) = responses[Math.Min(Urls.Count, responses.Length - 1)];
+            Urls.Add(request.RequestUri!.ToString());
+            return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) });
+        }
+    }
+
+    private static GeminiLlmProvider MakeResilient(SequenceHandler h, string? fallback = null) =>
+        new(new HttpClient(h),
+            new GeminiOptions("KEY", "main-model", fallback, [TimeSpan.Zero, TimeSpan.Zero]));
+
+    [Fact]
+    public async Task Retries_on_503_and_succeeds_when_the_model_recovers()
+    {
+        var h = new SequenceHandler((HttpStatusCode.ServiceUnavailable, "busy"), (HttpStatusCode.OK, Line("ok")));
+
+        var result = await Drain(MakeResilient(h));
+
+        Assert.Equal(["ok"], result);
+        Assert.Equal(2, h.Urls.Count);
+        Assert.All(h.Urls, u => Assert.Contains("main-model", u));
+    }
+
+    [Fact]
+    public async Task Falls_back_to_the_fallback_model_after_exhausting_retries()
+    {
+        var h = new SequenceHandler(
+            (HttpStatusCode.ServiceUnavailable, "busy"),
+            (HttpStatusCode.ServiceUnavailable, "busy"),
+            (HttpStatusCode.ServiceUnavailable, "busy"),
+            (HttpStatusCode.OK, Line("respaldo")));
+
+        var result = await Drain(MakeResilient(h, fallback: "backup-model"));
+
+        Assert.Equal(["respaldo"], result);
+        Assert.Equal(4, h.Urls.Count);
+        Assert.Equal(3, h.Urls.Count(u => u.Contains("main-model")));
+        Assert.Contains("backup-model", h.Urls[3]);
+    }
+
+    [Fact]
+    public async Task Persistent_503_without_fallback_throws_LlmFailure_after_all_attempts()
+    {
+        var h = new SequenceHandler((HttpStatusCode.ServiceUnavailable, "busy"));
+
+        var ex = await Assert.ThrowsAsync<NotesException>(() => Drain(MakeResilient(h)));
+
+        Assert.Equal(NotesErrorCode.LlmFailure, ex.Code);
+        Assert.Equal(3, h.Urls.Count);
+    }
+
+    [Fact]
+    public async Task Http_429_is_not_retried()
+    {
+        var h = new SequenceHandler((HttpStatusCode.TooManyRequests, ""));
+
+        var ex = await Assert.ThrowsAsync<NotesException>(() => Drain(MakeResilient(h, fallback: "backup-model")));
+
+        Assert.Equal(NotesErrorCode.RateLimited, ex.Code);
+        Assert.Single(h.Urls);
+    }
 }

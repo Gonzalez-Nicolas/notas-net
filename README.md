@@ -46,6 +46,7 @@ Tests: `dotnet test backend` y `npm --prefix frontend test`.
 - **SSE en lugar de esperar la respuesta completa.** Las notas de un video largo tardan; mostrar el texto en streaming mejora mucho la experiencia. Como el endpoint es `POST`, el frontend usa `fetch` con lectura de stream en vez de `EventSource`.
 - **Clean Architecture ligera.** Un solo proyecto con carpetas `Application` / `Infrastructure` / `Endpoints`. Da separación de responsabilidades sin la sobreingeniería de cuatro proyectos para una app de este tamaño.
 - **Map-reduce para videos largos.** Si el transcript supera un umbral, se resume por partes y se genera la nota final sobre esos resúmenes.
+- **Resiliencia ante el proveedor.** Si Gemini responde 503 (modelo saturado), el backend reintenta con espera y, si persiste, cambia a un modelo de respaldo (`Gemini__FallbackModel`). Los reintentos ocurren antes de empezar a transmitir, así nunca se duplica texto.
 - **Protección de costos.** Rate limit por IP, tope de tamaño de transcript y cuota diaria global de llamadas al LLM.
 
 ## Limitaciones conocidas

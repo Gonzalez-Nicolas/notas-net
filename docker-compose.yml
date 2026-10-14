@@ -5,7 +5,8 @@ services:
       - "8080:8080"
     environment:
       Gemini__ApiKey: ${GEMINI_API_KEY:?Definí GEMINI_API_KEY en .env}
-      Gemini__Model: ${GEMINI_MODEL:-gemini-2.5-flash}
+      Gemini__Model: ${GEMINI_MODEL:-gemini-3.6-flash}
+      Gemini__FallbackModel: ${GEMINI_FALLBACK_MODEL:-gemini-3.5-flash-lite}
       Cors__AllowedOrigin: http://localhost:3000
 
   frontend:
