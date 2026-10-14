@@ -115,10 +115,10 @@ public class NotesEndpointTests
         var client = Client();
 
         var allowed = new HttpRequestMessage(HttpMethod.Post, "/api/notes")
-            { Content = JsonContent.Create(new { url = ValidUrl }) };
+        { Content = JsonContent.Create(new { url = ValidUrl }) };
         allowed.Headers.Add("Origin", AllowedOrigin);
         var denied = new HttpRequestMessage(HttpMethod.Post, "/api/notes")
-            { Content = JsonContent.Create(new { url = ValidUrl }) };
+        { Content = JsonContent.Create(new { url = ValidUrl }) };
         denied.Headers.Add("Origin", "https://evil.example");
 
         var allowedResponse = await client.SendAsync(allowed);

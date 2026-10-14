@@ -1,0 +1,19 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      Gemini__ApiKey: ${GEMINI_API_KEY:?Definí GEMINI_API_KEY en .env}
+      Gemini__Model: ${GEMINI_MODEL:-gemini-2.5-flash}
+      Cors__AllowedOrigin: http://localhost:3000
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8080
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
